@@ -1,0 +1,17 @@
+{
+  "symbol": "BTC",
+  "bids": [
+    {"price": 67990.0, "size": 1.2},
+    {"price": 67950.0, "size": 2.5},
+    {"price": 67900.0, "size": 3.1},
+    {"price": 67850.0, "size": 0.8},
+    {"price": 67800.0, "size": 4.0}
+  ],
+  "asks": [
+    {"price": 68010.0, "size": 1.0},
+    {"price": 68060.0, "size": 2.2},
+    {"price": 68100.0, "size": 1.7},
+    {"price": 68150.0, "size": 3.3},
+    {"price": 68200.0, "size": 2.9}
+  ]
+}

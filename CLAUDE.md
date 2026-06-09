@@ -102,7 +102,7 @@ this session, reflect AUTONOMOUSLY — do not wait for the user to point it out:
 Goal: prevent the same CLASS of error from recurring. Every error is a free lesson.
 
 ## Project Context
-deep_research — 코인 정보를 수집·분석해주는 deep research **multi-agent** 시스템.
+crypto_deep_research — 코인 정보를 수집·분석해주는 deep research **multi-agent** 시스템.
 Python + LangGraph로 orchestrator + sub-agent 그래프를 구성한다.
 데이터 소스: CoinGecko API(시세·메타데이터), Binance API(실시간 시세·오더북), Upbit API(국내·원화 마켓).
 에이전트가 외부 데이터를 가져오므로 prompt injection · rate limit · API 키 노출에 주의한다.

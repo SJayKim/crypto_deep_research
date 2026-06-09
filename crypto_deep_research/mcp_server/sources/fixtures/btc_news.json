@@ -1,0 +1,9 @@
+{
+  "symbol": "BTC",
+  "items": [
+    {"title": "Spot Bitcoin ETF inflows hit a weekly high", "source": "CoinDesk", "sentiment": 0.6},
+    {"title": "Analysts eye $70k as the next BTC resistance", "source": "Cointelegraph", "sentiment": 0.3},
+    {"title": "Regulatory uncertainty weighs on crypto markets", "source": "Reuters", "sentiment": -0.4},
+    {"title": "Bitcoin network hashrate reaches a record high", "source": "The Block", "sentiment": 0.5}
+  ]
+}

@@ -18,6 +18,9 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
+# Memory DBs (MEMORY_DIR; default .memory)
+.memory/
+
 # OS / editor
 .DS_Store
 .idea/

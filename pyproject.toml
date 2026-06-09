@@ -1,0 +1,51 @@
+[project]
+name = "crypto-deep-research"
+version = "0.0.0"
+description = "Crypto deep-research multi-agent system (orchestrator + workers + MCP server)."
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "langchain-anthropic>=1.4.4",
+    "langgraph>=1.2.4",
+    "langgraph-checkpoint-sqlite>=2.0.0",
+    "mcp>=1.27.2",
+    "pydantic>=2.7",
+    "starlette>=1.2.1",
+    "uvicorn>=0.49.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pytest>=8.2",
+    "pre-commit>=3.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["crypto_deep_research"]
+
+[tool.uv]
+# This machine does TLS interception; uv's bundled CA roots reject the chain.
+# Trust the OS cert store so `uv sync` works without a manual --system-certs flag.
+system-certs = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ['^\.venv/']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

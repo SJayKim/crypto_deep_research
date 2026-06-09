@@ -1,7 +1,11 @@
 # EPIC: "analyze BTC now" vertical slice (Approach B, M0–M5)
 
-> Authored by `/spec` on 2026-06-08. Source of truth: `docs/DESIGN.md` (+ Locked
-> Decisions). Non-functional constraints: `CLAUDE.md`. Status reference:
+> Authored by `/spec` on 2026-06-08; split into per-phase docs on 2026-06-09. This
+> file is the **index**: it holds the shared material every phase references
+> (architecture, locked decisions, contracts, testing strategy, definition of done).
+> The executable milestone bodies live one per file under
+> [`phases/`](./phases/). Source of truth: `docs/DESIGN.md` (+ Locked Decisions).
+> Non-functional constraints: `CLAUDE.md`. Status reference:
 > `docs/status/current_status.md`. Deferred work in `TODOS.md` is **out of scope**
 > (see "Out of Scope"). No GitHub remote, so this spec is a local doc, not an issue.
 
@@ -9,7 +13,7 @@
 
 ## Context
 
-`deep_research` is a **learning vehicle**: the coin domain is the excuse, the goal
+`crypto_deep_research` is a **learning vehicle**: the coin domain is the excuse, the goal
 is to feel every 2026 core agent concept once (orchestrator-worker, context
 isolation, distillation, layered memory, MCP vs A2A). Learning fidelity is the
 north star, not analysis quality (DESIGN D1). The chosen architecture is
@@ -31,7 +35,7 @@ Greenfield. The repo holds docs + config only; no Python, no package, no scaffol
 | `CLAUDE.md`, `.gitignore`, `.env.example` | ✅ | `.env.example` has CoinGecko/Binance/Upbit/Anthropic keys |
 | `.claude/hooks/protect-files.ps1` + `settings.json` | ✅ | Security hook |
 | `pyproject.toml` | ❌ | M0 creates it |
-| `deep_research/` package, `contracts/`, `orchestrator/`, `workers/`, `mcp_server/`, `memory/` | ❌ | M0–M5 create them |
+| `crypto_deep_research/` package, `contracts/`, `orchestrator/`, `workers/`, `mcp_server/`, `memory/` | ❌ | M0–M5 create them |
 | any `*.py` | ❌ | M0 is the first code |
 
 So M0 is the genuine next action; nothing exists to refactor or preserve.
@@ -51,10 +55,10 @@ Six services. Five 2026 concepts, each pinned to a component (DESIGN
 
 ### Proposed package layout (M0 establishes it)
 
-Flat `deep_research/` package at repo root. CLI entry `python -m deep_research "analyze BTC now"`.
+Flat `crypto_deep_research/` package at repo root. CLI entry `python -m crypto_deep_research "analyze BTC now"`.
 
 ```
-deep_research/
+crypto_deep_research/
   __main__.py            # CLI entry → orchestrator
   wiring.py              # static service URLs from env; data-driven worker registry
   contracts/            # C5: one shared package imported by ALL six services
@@ -87,7 +91,7 @@ tests/
 ```
 
 `service.py` per worker = A2A JSON-RPC server + Agent Card at
-`/.well-known/agent.json`. DB topology (A4): each worker owns its own checkpointer
+`/.well-known/agent.json`. DB topology (A4): each worker owns its checkpointer
 DB; the orchestrator solely owns the episodic + long-term DB; MCP is stateless.
 
 ## Locked Decisions (do NOT re-litigate)
@@ -108,9 +112,10 @@ These are settled by `/plan-eng-review`; treat as constraints, not options:
 | TENSION-B | Long-term **READ** trigger (planner picks worker set) ships in **M3**, not M4 |
 | TENSION-C | Synthesis report carries explicit per-dimension coverage; a test asserts a 1-of-4 run is visibly partial |
 
-## Shared Contracts (M0 deliverable, zero design decisions left)
+## Shared Contracts (M0 deliverable, normative — referenced by every phase)
 
-Concrete Pydantic v2 sketches. Caps are normative.
+Concrete Pydantic v2 sketches. Caps are normative. [M0](./phases/M0.md) implements
+these; M1–M5 import them unchanged.
 
 ```python
 # contracts/artifact.py
@@ -227,19 +232,24 @@ Wiring pin (M0): one env var per service URL + MCP URL + `WORKER_TIMEOUT_S`
 worker never edits `orchestrator/`; Agent Cards at `/.well-known/agent.json`;
 MCP transport = streamable HTTP.
 
-## Child Issues
+## Phases
 
-| # | Milestone | Priority | Effort (nominal) | Status | Depends on |
-|---|-----------|----------|------------------|--------|-----------|
-| M0 | Contracts & scaffold | Critical | S–M (~½ day) | Not started | — |
-| M1 | One worker, direct (market + MCP fixtures) | Critical | M (~1 day) | Blocked | M0 |
-| M2 | One worker over A2A (first over-the-wire slice) | Critical | M (~1 day) | Blocked | M1 |
-| M3 | Fan-out + synthesizer + long-term READ | High | L (~2–3 days) | Blocked | M2 |
-| M4 | Memory writes + episodic/long-term round-trip | High | M (~1 day) | Blocked | M3 |
-| M5 | Live CoinGecko swap + docker-compose packaging | Medium | M (~1–1.5 days) | Blocked | M4 |
+Each milestone is a standalone phase doc under [`phases/`](./phases/). Every phase
+carries an **Inherits** block (what it consumes from the prior phase) and a
+**Hands off** block (the seam the next phase extends), so the implementation flow
+stays connected across files.
+
+| # | Phase | Priority | Effort (nominal) | Status | Depends on |
+|---|-------|----------|------------------|--------|-----------|
+| [M0](./phases/M0.md) | Contracts & scaffold | Critical | S–M (~½ day) | Not started | — |
+| [M1](./phases/M1.md) | One worker, direct (market + MCP fixtures) | Critical | M (~1 day) | Blocked | M0 |
+| [M2](./phases/M2.md) | One worker over A2A (first over-the-wire slice) | Critical | M (~1 day) | Blocked | M1 |
+| [M3](./phases/M3.md) | Fan-out + synthesizer + long-term READ | High | L (~2–3 days) | Blocked | M2 |
+| [M4](./phases/M4.md) | Memory writes + episodic/long-term round-trip | High | M (~1 day) | Blocked | M3 |
+| [M5](./phases/M5.md) | Live CoinGecko swap + docker-compose packaging | Medium | M (~1–1.5 days) | Blocked | M4 |
 
 Effort is learning-paced and nominal; wall-clock varies with how much each concept
-is being learned for the first time. Per-component breakdown is in each child below.
+is being learned for the first time. Per-component breakdown is in each phase doc.
 
 ## Dependency Graph
 
@@ -275,186 +285,6 @@ dirs and can run as separate worktree lanes (DESIGN "Worktree parallelization").
 - **M4 before M5**: the slice must be correct in-process (loopback ASGI, T8) before
   paying for live data + container packaging. M5 swaps one DataSource and adds
   docker-compose; doing it earlier would debug infra against unproven logic.
-
----
-
-## M0 — Contracts & scaffold
-
-**Scope.** `pyproject.toml` (uv, ruff, mypy, pytest, pre-commit), the package
-layout above, all `contracts/` models, `wiring.py`, the `sources/fixtures/`
-directory (empty placeholder), and service-URL env vars added to `.env.example`.
-**No service logic, no agent, no server.**
-
-**Acceptance criteria** (numbered, pass/fail):
-1. `uv sync` succeeds; `python -c "import deep_research.contracts"` works.
-2. `uv run ruff check .` and `uv run mypy .` pass clean on `contracts/` + `wiring.py`.
-3. `WorkerArtifact` rejects 6 key_points, rejects a >200-char key_point, and rejects
-   a >200-char headline (3 deterministic-stub validator unit tests, T7b).
-4. `SynthesisReport` round-trips `status` ∈ {ok, partial, failed} with populated
-   `dimensions_ok` / `dimensions_unavailable`.
-5. `wiring.py` reads the worker URL list + `WORKER_TIMEOUT_S` (default 30) from env;
-   a missing var raises a clear error (not a silent default for URLs).
-6. No function exceeds 30 lines; no untyped `dict` in contract models (CLAUDE.md).
-
-**Files.** `pyproject.toml`, `deep_research/contracts/{a2a,mcp_tools,artifact,report,memory}.py`,
-`deep_research/wiring.py`, `.env.example` (append service URLs), `tests/test_contracts.py`.
-
-**Effort.** Schemas ~2h + scaffold/tooling ~1h + validator tests ~1h.
-
-**Applies.** A1, A2 (validator half), A3 (timeout env), A4 (interface only), C5, TENSION-C (report fields).
-
----
-
-## M1 — One worker, direct
-
-**Scope.** MCP server (streamable HTTP) exposing all 4 tools backed by
-`FixtureSource`; `market-worker` as a LangGraph agent (`data → reason → distill`)
-called **directly** (no A2A); BTC fixtures for the 4 tools. Market-worker uses LLM
-reasoning (DESIGN per-worker decision); distill node emits a valid bounded
-`WorkerArtifact`.
-
-**Acceptance criteria:**
-1. MCP server responds to all 4 tool calls over streamable HTTP with the schemas in
-   `contracts/mcp_tools.py`; tools are stateless and read-only (4 concurrent calls
-   return identical data).
-2. Calling `market-worker` directly with `"BTC"` pulls OHLCV via MCP, reasons, and
-   returns a `WorkerArtifact(dimension="market", status="ok")` that passes all
-   validators.
-3. Worker-behavior test runs against **real Anthropic** and asserts the artifact is
-   non-trivial (headline non-empty, ≥1 key point, ≥1 evidence) (T7).
-4. MCP-down test uses a **deterministic stub**: MCP unreachable → worker returns
-   `status="failed"`, never raises into the caller (T7b, A3 shape).
-
-**Files.** `mcp_server/server.py`, `mcp_server/sources/{base,fixture}.py`,
-`mcp_server/sources/fixtures/btc_*.json`, `workers/market/agent.py`,
-`tests/test_market_worker.py`, `tests/test_mcp_server.py`.
-
-**Effort.** MCP server + fixtures ~3h, market-worker agent ~3h, tests ~2h.
-
-**Applies.** A2 (distill bounds), MCP boundary, T7/T7b.
-
----
-
-## M2 — One worker over A2A
-
-**Scope.** Wrap `market-worker` as an A2A JSON-RPC 2.0 service (A1) with a static
-Agent Card at `/.well-known/agent.json`; orchestrator `dispatch` node calls it over
-A2A. First over-the-wire vertical slice. Hand-rolled wire only (A1 already settled
-the SDK question).
-
-**Acceptance criteria:**
-1. `market-worker/service.py` serves `POST` JSON-RPC `analyze` and `GET /.well-known/agent.json`.
-2. Orchestrator dispatches an A2A `analyze` task and receives a `WorkerArtifact`
-   back; request/response validate against `contracts/a2a.py`.
-3. E2E test runs the worker as an in-process ASGI app on a loopback port (T8) and
-   asserts a real JSON-RPC round-trip (not an in-proc function call).
-4. A malformed JSON-RPC request returns a structured `JsonRpcError`, not a 500 stack trace.
-
-**Files.** `workers/market/service.py`, `orchestrator/dispatch.py` (single-worker
-form), `orchestrator/app.py` (minimal plan→dispatch→return), `tests/test_a2a_market.py`.
-
-**Effort.** A2A server + Agent Card ~3h, dispatch client ~2h, E2E ~2h.
-
-**Applies.** A1, T8, context isolation (orchestrator receives only the artifact).
-
----
-
-## M3 — Fan-out + synthesizer + long-term READ
-
-**Scope.** Add `orderbook-worker` as the 2nd worker, then extract `workers/base.py`
-(C6 rule of three), then add `sentiment-worker` + `onchain-worker`. `asyncio.gather`
-fan-out over A2A (P9, never `Send`). Synthesizer merges artifacts into a
-`SynthesisReport` with per-dimension coverage (TENSION-C). Planner reads long-term
-memory to pick the worker set (TENSION-B long-term READ). Partial-failure policy
-(A3): synthesize on ≥1 artifact, mark the rest unavailable; per-worker 30s timeout.
-
-**Acceptance criteria:**
-1. All 4 workers dispatch in parallel via `asyncio.gather` over A2A; total latency ≈
-   slowest worker, not the sum (proves parallel, not sequential).
-2. **Flagship isolation test (A2):** feed a 1000-row OHLCV fixture; assert (a) the
-   market artifact is bounded (≤5 key_points, no raw array) AND (b) orchestrator
-   state holds **zero** raw OHLCV arrays at any point (stub LLM, T7b).
-3. **Partial test (TENSION-C):** force 1 worker to fail; report has
-   `status="partial"`, the failed dimension in `dimensions_unavailable` with a
-   reason, and the CLI surfaces it.
-4. **Zero-artifact test (A3):** all 4 fail → `status="failed"`, every dimension
-   listed with a reason, CLI exits non-zero.
-5. **Timeout test (A3):** a worker exceeding `WORKER_TIMEOUT_S` is marked
-   unavailable, not blocking; the gather still returns.
-6. Planner reads long-term `watchlist()` / `facts(symbol)` and the chosen worker set
-   reflects it (long-term READ trigger, stub memory).
-7. `orchestrator/` is untouched when adding workers 3 and 4 (data-driven registry).
-
-**Files.** `workers/{orderbook,sentiment,onchain}/{agent,service}.py`,
-`workers/base.py`, `orchestrator/{planner,dispatch,synthesize}.py`,
-`tests/test_isolation.py`, `tests/test_partial.py`, `tests/test_zero_artifact.py`,
-`tests/test_timeout.py`, `tests/test_planner_longterm_read.py`.
-
-**Effort.** orderbook ~2h, base extract ~2h, sentiment+onchain ~3h, synthesizer ~2h,
-planner READ ~1h, the 5 tests ~4h. Largest milestone; split into worktree lanes if
-desired (orderbook / sentiment / onchain disjoint).
-
-**Applies.** P9, A2 (flagship), A3, C6, TENSION-B, TENSION-C, T7b, T8.
-
----
-
-## M4 — Memory writes + round-trip
-
-**Scope.** Episodic write (run end stores `RunRecord`) + read (run start retrieves
-last run by symbol); long-term write (run end appends learned facts); working memory
-via the LangGraph checkpointer. DB topology per A4: each worker owns its checkpointer
-DB; orchestrator solely owns the episodic + long-term DB (single-writer-per-file);
-MCP stateless.
-
-**Acceptance criteria:**
-1. A second `analyze BTC now` run reads the first via episodic `last_for("BTC")`
-   and the run visibly references it (episodic round-trip).
-2. A long-term fact written at run end changes the next run's plan (long-term
-   WRITE → next-run READ closes the loop started in M3).
-3. Each worker's checkpointer DB is a distinct file from the orchestrator's
-   episodic/long-term DB (A4 verified by path assertion).
-4. Concurrent workers writing their own checkpointer DBs never touch the
-   orchestrator DB (single-writer-per-file holds).
-5. Memory tests use deterministic stubs, not real LLM (T7b).
-
-**Files.** `memory/{working,episodic,longterm}.py`, orchestrator run-start/run-end
-wiring, `tests/test_episodic_roundtrip.py`, `tests/test_longterm_affects_plan.py`,
-`tests/test_db_topology.py`.
-
-**Effort.** episodic ~2h, long-term ~2h, working/checkpointer wiring ~2h, tests ~2h.
-
-**Applies.** A4, premise 5 (every layer has a trigger), T7b.
-
----
-
-## M5 — Live data + packaging
-
-**Scope.** Add `CoinGeckoSource` behind the same MCP tool interface, swap one tool
-(`get_ohlcv`) from fixture to live with **zero agent code changes**; the other 3
-stay on fixtures. `docker-compose` brings up orchestrator + 4 workers + MCP server +
-DB as the single real-OS-process-boundary proof (T8). API key from `.env`,
-rate-limit handling on the live source.
-
-**Acceptance criteria:**
-1. `docker-compose up` then `python -m deep_research "analyze BTC now"` returns a
-   `SynthesisReport` using live CoinGecko for `get_ohlcv`, fixtures for the rest.
-2. The fixture→live swap touched only `sources/coingecko.py` + env; no diff under
-   `workers/` or `orchestrator/` (proves the MCP tool boundary held).
-3. CoinGecko key loads from `.env`; grep finds no hardcoded key (CLAUDE.md).
-4. A simulated 429 from CoinGecko is handled (backoff or surfaced as a dimension
-   gap), not an unhandled crash. Live calls appear only in this milestone's
-   eval-style check, never in the deterministic suite (CLAUDE.md: no live API in tests).
-5. Logs show 6 distinct processes under compose (real process-boundary proof).
-
-**Files.** `mcp_server/sources/coingecko.py`, `docker-compose.yml`, per-service
-`Dockerfile`(s), `tests/test_source_swap.py` (asserts no agent-code diff path).
-
-**Effort.** CoinGeckoSource + rate limit ~3h, docker-compose + Dockerfiles ~3h,
-swap test ~1h.
-
-**Applies.** A4 (MCP stateless), MCP boundary, T8 (compose), CLAUDE.md (keys, no live API in tests).
-
----
 
 ## Testing Strategy
 
@@ -519,9 +349,9 @@ Also out of scope for this epic:
 
 1. **Python 3.12** for the toolchain pin (mature asyncio, modern typing). DESIGN
    doesn't pin a version.
-2. **Flat `deep_research/` package** at repo root (vs `src/` layout). DESIGN left
+2. **Flat `crypto_deep_research/` package** at repo root (vs `src/` layout). DESIGN left
    the exact layout to implementation; flat is simpler for a learning repo and still
-   supports `python -m deep_research`.
+   supports `python -m crypto_deep_research`.
 3. **onchain-worker reasoning style is decided at M3**, not here. DESIGN specified
    market/sentiment = LLM and orderbook = mostly deterministic, but left onchain
    open; it leans deterministic but the call is the builder's at M3.
@@ -536,6 +366,6 @@ Also out of scope for this epic:
 
 ## Next action
 
-Start **M0**: scaffold (`uv init`, `pyproject.toml`, package layout) and write the
-`contracts/` models with their validator unit tests. Per DESIGN, this is the one
-gate everything else imports.
+Start **[M0](./phases/M0.md)**: scaffold (`uv init`, `pyproject.toml`, package layout)
+and write the `contracts/` models with their validator unit tests. Per DESIGN, this is
+the one gate everything else imports.

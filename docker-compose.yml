@@ -1,0 +1,77 @@
+# M5: the slice as real OS processes. `docker compose up` brings up the MCP server + 4
+# workers (5 services); the orchestrator is a oneshot run on top of them:
+#   docker compose up -d
+#   docker compose run --rm orchestrator
+# Six distinct processes appear in the logs (AC#5). The MCP server serves get_ohlcv from
+# live CoinGecko (COIN_DATA_SOURCE=coingecko); the other 3 tools stay on fixtures. Keys
+# come from .env (COINGECKO_API_KEY, ANTHROPIC_API_KEY) -- never hardcoded (AC#3).
+
+x-worker: &worker
+  build: .
+  image: crypto-deep-research
+  command: python -m crypto_deep_research.serve_worker
+  depends_on: [mcp]
+
+services:
+  mcp:
+    build: .
+    image: crypto-deep-research
+    command: python -m crypto_deep_research.mcp_server
+    environment:
+      COIN_DATA_SOURCE: coingecko
+      COINGECKO_API_KEY: ${COINGECKO_API_KEY:-}
+      MCP_HOST: 0.0.0.0
+    ports:
+      - "8000:8000"
+
+  market:
+    <<: *worker
+    environment:
+      WORKER_KIND: market
+      MCP_URL: http://mcp:8000/mcp
+      PUBLIC_URL: http://market:8101
+      PORT: "8101"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+  orderbook:
+    <<: *worker
+    environment:
+      WORKER_KIND: orderbook
+      MCP_URL: http://mcp:8000/mcp
+      PUBLIC_URL: http://orderbook:8102
+      PORT: "8102"
+
+  sentiment:
+    <<: *worker
+    environment:
+      WORKER_KIND: sentiment
+      MCP_URL: http://mcp:8000/mcp
+      PUBLIC_URL: http://sentiment:8103
+      PORT: "8103"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+  onchain:
+    <<: *worker
+    environment:
+      WORKER_KIND: onchain
+      MCP_URL: http://mcp:8000/mcp
+      PUBLIC_URL: http://onchain:8104
+      PORT: "8104"
+
+  # Oneshot CLI orchestrator (the 6th process). Not started by `up` (profile "run");
+  # trigger with `docker compose run --rm orchestrator`.
+  orchestrator:
+    build: .
+    image: crypto-deep-research
+    command: ["python", "-m", "crypto_deep_research", "analyze BTC now"]
+    profiles: ["run"]
+    depends_on: [market, orderbook, sentiment, onchain]
+    environment:
+      MCP_URL: http://mcp:8000/mcp
+      WORKER_URLS: http://market:8101,http://orderbook:8102,http://sentiment:8103,http://onchain:8104
+      MEMORY_DIR: /data
+    volumes:
+      - memory:/data
+
+volumes:
+  memory:
