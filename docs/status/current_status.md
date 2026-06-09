@@ -1,6 +1,6 @@
 # 현재 상태 (current_status)
 
-**일시:** 2026-06-09 11:06
+**일시:** 2026-06-09 (M3~M5 반영 갱신)
 
 ## 진행한 내용
 - 프로젝트 초기 세팅 완료: `CLAUDE.md`(Karpathy 4원칙 verbatim + Commands/Self-Reflection/Project Context), `.gitignore`, `.env.example`(CoinGecko/Binance/Upbit/Anthropic), 보안 hook(`.claude/hooks/protect-files.ps1` + `settings.json`), `git init`.
@@ -41,16 +41,47 @@
     없이 결정적으로 검증; 라이브 happy-path(status="ok")는 skipif-key.
   - `httpx`/`starlette`를 직접 의존성으로 승격(이미 transitive). 에이전트 로직 불변.
   - **caveat:** 라이브 A2A 라운드트립(T8, status="ok")은 키 없어 skip(1건).
-- **커밋 상태:** M0 + M1 + M2 + 스펙 문서 전부 **미커밋** (리포 커밋은 `471c17f`
-  하나뿐, `CHECKPOINT_MODE=explicit`).
+- **M3 완료·검증(2026-06-09):** Fan-out + synthesizer + long-term READ + 공통 하네스
+  추출 + 나머지 워커 3개.
+  - `dispatch.py`에 `fan_out`(`asyncio.gather`, P9 — Send 금지) + `_dispatch_or_gap`
+    (워커별 timeout → `DimensionGap`, A3).
+  - `orchestrator/synthesize.py`: artifact 병합 + `dimensions_ok`/`dimensions_unavailable`
+    명시 + status `ok|partial|failed`(TENSION-C).
+  - `planner.py`: `discover`(Agent Card → dimension 레지스트리, AC#7) +
+    `plan_dimensions`(long-term READ, TENSION-B).
+  - `app.py`: `plan → dispatch → synthesize` LangGraph로 일반화.
+  - `workers/base.py` 공통 하네스 추출(C6): `build_worker_graph`(data→work/fail) +
+    `llm_distill`(A2) + `build_worker_app`(A2A 서비스).
+  - 워커 3개 추가: `orderbook`(결정적), `sentiment`(LLM), `onchain`(결정적).
+- **M4 완료·검증(2026-06-09):** 레이어드 메모리 실트리거 연결.
+  - episodic(`SqliteEpisodicMemory`: `last_for`/`put`) + long-term
+    (`SqliteLongTermMemory`: `watchlist`/`facts`/`add_facts`), 단일 `orchestrator.db`
+    단독 소유(A4). MCP 서버 stateless.
+  - `run_orchestrator`: run 시작 episodic READ → seed, run 끝 episodic `put` +
+    long-term `add_facts`.
+  - working(`memory/working.py`, 워커 checkpointer DB)은 구현·테스트 완료. **단,
+    라이브 서빙 경로(`run_worker`)는 checkpointer 없이 호출 → 실제 런 미사용**(gap).
+- **M5 완료·검증(2026-06-09):** 라이브 데이터 스왑 + 패키징.
+  - `CoinGeckoSource`(`get_ohlcv` 라이브, 429 retry/backoff; 나머지 3툴은 fixture
+    위임) + `source_from_env`(`COIN_DATA_SOURCE` env). 에이전트 코드 불변(AC#2).
+  - `Dockerfile` + `docker-compose.yml`(6 프로세스) + `serve_worker.py`(`WORKER_KIND`)
+    + `mcp_server/__main__`(`MCP_HOST`).
+- **아키텍처 맵 작성:** `docs/ARCHITECTURE-MAP.md`(토폴로지·요청흐름·워커그래프 Mermaid
+  다이어그램 + 설계노드↔코드 매핑 + 코드↔설계 갭 2건).
+- **게이트 전부 green(2026-06-09 재검증):** pytest **31 passed, 2 skipped**, ruff clean,
+  mypy clean(40 files). skip 2건 = `ANTHROPIC_API_KEY` 필요한 라이브 테스트
+  (T7 워커, T8 A2A happy-path).
+- **커밋 상태:** M0~M5 + 스펙 문서 전부 `e2eb506`("feat: M0-M5 vertical slice")로
+  **커밋 완료**. 작업트리는 `docs/ARCHITECTURE-MAP.md`(신규)만 미커밋.
 
 ## Recommended next item
-1. (선택) **라이브 테스트 실행:** `.env`에 `ANTHROPIC_API_KEY` 넣고 `uv run pytest -q`
-   → T7(워커) + T8(A2A) 라이브 종단 확인 (현재 2 skipped).
-2. (선택) **커밋:** 4개로 분리 제안 — (a) 스펙 문서 (b) M0 scaffold/contracts
-   (c) M1 worker + MCP 서버 (d) M2 A2A 서비스 + orchestrator.
-3. **M3 — Fan-out + synthesizer + long-term READ** (`docs/specs/phases/M3.md`):
-   2번째 워커 추가 후 `dispatch.py`를 `asyncio.gather` fan-out으로 일반화(Send 금지),
-   `app.py`에 planner(long-term READ)/synthesize 노드 삽입, `workers/base.py`로
-   공통부 추출(C6).
-4. 보류 항목은 `TODOS.md` 참조 (Approach C / 공식 SDK·JSON-Schema·in-proc Send 변형).
+수직 슬라이스(M0~M5)는 코드·게이트 기준 **완주**. 남은 것은 라이브 종단 확인,
+코드↔설계 갭 2건, 보류 항목.
+
+1. **라이브 종단 확인:** `.env`에 `ANTHROPIC_API_KEY`(+ M5 라이브는 `COINGECKO_API_KEY`)
+   넣고 `uv run pytest -q` → T7(워커)·T8(A2A) happy-path 확인(현재 2 skipped).
+   `docker compose up -d` + `docker compose run --rm orchestrator`로 6 프로세스 종단(AC#5).
+2. **코드↔설계 갭 2건** (상세: `docs/ARCHITECTURE-MAP.md` §8):
+   - working 메모리가 라이브 경로 미연결 — `run_worker`에 checkpointer 미전달.
+   - `episodic_seed`가 워커까지 가지만 핸들러(`workers/base.py`)가 소비 안 함.
+3. **보류 항목:** `TODOS.md` 참조 (Approach C / 공식 SDK·JSON-Schema·in-proc Send 변형).
