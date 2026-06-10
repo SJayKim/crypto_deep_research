@@ -106,3 +106,22 @@ crypto_deep_research — 코인 정보를 수집·분석해주는 deep research 
 Python + LangGraph로 orchestrator + sub-agent 그래프를 구성한다.
 데이터 소스: CoinGecko API(시세·메타데이터), Binance API(실시간 시세·오더북), Upbit API(국내·원화 마켓).
 에이전트가 외부 데이터를 가져오므로 prompt injection · rate limit · API 키 노출에 주의한다.
+
+## Skill routing
+
+When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+
+Key routing rules:
+- Product ideas/brainstorming → invoke /office-hours
+- Strategy/scope → invoke /plan-ceo-review
+- Architecture → invoke /plan-eng-review
+- Design system/plan review → invoke /design-consultation or /plan-design-review
+- Full review pipeline → invoke /autoplan
+- Bugs/errors → invoke /investigate
+- QA/testing site behavior → invoke /qa or /qa-only
+- Code review/diff check → invoke /review
+- Visual polish → invoke /design-review
+- Ship/deploy/PR → invoke /ship or /land-and-deploy
+- Save progress → invoke /context-save
+- Resume context → invoke /context-restore
+- Author a backlog-ready spec/issue → invoke /spec
