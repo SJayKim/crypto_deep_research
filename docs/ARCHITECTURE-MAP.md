@@ -237,13 +237,11 @@ flowchart LR
 
 ## 8. ⚠️ 코드 ↔ 설계 갭 (정직한 메모)
 
-설계 의도와 현재 코드가 살짝 어긋나는 두 지점. 버그는 아니고, 트리거는 만들어 뒀으나 라이브 경로 연결이 덜 된 상태.
+설계 의도와 현재 코드가 살짝 어긋났던 두 지점. **둘 다 2026-06-10 리뷰 수정 배치(W1·W2, `dad06eb`)로 해소됨.**
 
-1. **working 메모리가 라이브 경로에 미연결.**
-   `memory/working.py`의 checkpointer 배선과 `build_worker_graph(checkpointer=...)` 파라미터는 있지만, 실제 서빙 경로 `analyze_market → run_worker(...)`는 checkpointer **없이** 호출한다 (`workers/market/agent.py:42`, `workers/base.py:112`). → working 계층은 *구현·테스트는 됐지만 실제 런에서는 미사용*.
+1. **working 메모리가 라이브 경로에 미연결.** → **해소(W2):** `serve_worker.py`의 `__main__`이 `worker_checkpointer(working_db_path(MEMORY_DIR, kind))`를 열어 `build_app(cp)`로 각 워커 서비스에 주입한다 (`serve_worker.py:44-45`).
 
-2. **`episodic_seed`가 워커까지 가지만 소비되지 않음.**
-   오케스트레이터는 seed를 `TaskParams`에 실어 보내지만(`dispatch.py:31`), 워커 핸들러는 `analyze(rpc.params.symbol, mcp_url)`만 호출해 seed를 버린다(`workers/base.py:150`). → seed가 A2A 경계까지는 도달하나 워커 추론엔 아직 미반영.
+2. **`episodic_seed`가 워커까지 가지만 소비되지 않음.** → **해소(W1):** 워커 핸들러가 `rpc.params.episodic_seed`를 `analyze(...)`로 전달하고, `seed_context`가 prior-run 컨텍스트를 reason 프롬프트에 반영한다 (`workers/base.py:60-65`, `workers/base.py:168`).
 
 ---
 

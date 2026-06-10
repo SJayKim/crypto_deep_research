@@ -1,6 +1,6 @@
 # 현재 상태 (current_status)
 
-**일시:** 2026-06-09 (M3~M5 반영 갱신)
+**일시:** 2026-06-10 (M0~M5 리뷰 수정 배치 반영 갱신)
 
 ## 진행한 내용
 - 프로젝트 초기 세팅 완료: `CLAUDE.md`(Karpathy 4원칙 verbatim + Commands/Self-Reflection/Project Context), `.gitignore`, `.env.example`(CoinGecko/Binance/Upbit/Anthropic), 보안 hook(`.claude/hooks/protect-files.ps1` + `settings.json`), `git init`.
@@ -59,8 +59,9 @@
     단독 소유(A4). MCP 서버 stateless.
   - `run_orchestrator`: run 시작 episodic READ → seed, run 끝 episodic `put` +
     long-term `add_facts`.
-  - working(`memory/working.py`, 워커 checkpointer DB)은 구현·테스트 완료. **단,
-    라이브 서빙 경로(`run_worker`)는 checkpointer 없이 호출 → 실제 런 미사용**(gap).
+  - working(`memory/working.py`, 워커 checkpointer DB)은 구현·테스트 완료.
+    (라이브 경로 미연결 gap → **2026-06-10 W2로 해소**: `serve_worker.__main__`이
+    `worker_checkpointer`를 열어 `build_app(cp)`로 주입.)
 - **M5 완료·검증(2026-06-09):** 라이브 데이터 스왑 + 패키징.
   - `CoinGeckoSource`(`get_ohlcv` 라이브, 429 retry/backoff; 나머지 3툴은 fixture
     위임) + `source_from_env`(`COIN_DATA_SOURCE` env). 에이전트 코드 불변(AC#2).
@@ -68,20 +69,23 @@
     + `mcp_server/__main__`(`MCP_HOST`).
 - **아키텍처 맵 작성:** `docs/ARCHITECTURE-MAP.md`(토폴로지·요청흐름·워커그래프 Mermaid
   다이어그램 + 설계노드↔코드 매핑 + 코드↔설계 갭 2건).
-- **게이트 전부 green(2026-06-09 재검증):** pytest **31 passed, 2 skipped**, ruff clean,
-  mypy clean(40 files). skip 2건 = `ANTHROPIC_API_KEY` 필요한 라이브 테스트
+- **M0~M5 코드리뷰 + 수정 배치 완료(2026-06-10):** `docs/reviews/README.md` fix plan의
+  코드 항목 전부 완료 — W3/W6/W4(워커 수정), W1(`episodic_seed` 워커 소비),
+  W2(라이브 checkpointer 주입), O2(planner 토큰 매칭 + `add_facts` dedup),
+  O1(`asyncio.wait_for` wall-clock 마감), WC1(`tests/test_wiring.py`),
+  C2(`WorkingMemory` 주석).
+- **게이트 전부 green(2026-06-10 재검증):** pytest **54 passed, 2 skipped**, ruff clean,
+  mypy clean(60 files). skip 2건 = `ANTHROPIC_API_KEY` 필요한 라이브 테스트
   (T7 워커, T8 A2A happy-path).
-- **커밋 상태:** M0~M5 + 스펙 문서 전부 `e2eb506`("feat: M0-M5 vertical slice")로
-  **커밋 완료**. 작업트리는 `docs/ARCHITECTURE-MAP.md`(신규)만 미커밋.
+- **커밋 상태:** 리뷰 수정 배치까지 `dad06eb`("fix: M0-M5 review fixes")로 **커밋 완료**.
 
 ## Recommended next item
-수직 슬라이스(M0~M5)는 코드·게이트 기준 **완주**. 남은 것은 라이브 종단 확인,
-코드↔설계 갭 2건, 보류 항목.
+수직 슬라이스(M0~M5)는 코드·게이트 기준 **완주**, 리뷰 수정 배치까지 반영.
+남은 것은 라이브 종단 확인, 보류 항목.
 
 1. **라이브 종단 확인:** `.env`에 `ANTHROPIC_API_KEY`(+ M5 라이브는 `COINGECKO_API_KEY`)
    넣고 `uv run pytest -q` → T7(워커)·T8(A2A) happy-path 확인(현재 2 skipped).
    `docker compose up -d` + `docker compose run --rm orchestrator`로 6 프로세스 종단(AC#5).
-2. **코드↔설계 갭 2건** (상세: `docs/ARCHITECTURE-MAP.md` §8):
-   - working 메모리가 라이브 경로 미연결 — `run_worker`에 checkpointer 미전달.
-   - `episodic_seed`가 워커까지 가지만 핸들러(`workers/base.py`)가 소비 안 함.
+2. **코드↔설계 갭 2건 — 해소(2026-06-10):** W2(라이브 checkpointer 주입) +
+   W1(`episodic_seed` 워커 소비). 상세: `docs/ARCHITECTURE-MAP.md` §8.
 3. **보류 항목:** `TODOS.md` 참조 (Approach C / 공식 SDK·JSON-Schema·in-proc Send 변형).
