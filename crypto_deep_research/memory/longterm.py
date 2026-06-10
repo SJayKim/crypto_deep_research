@@ -28,7 +28,14 @@ class SqliteLongTermMemory:
         return [str(row[0]) for row in rows]
 
     def add_facts(self, symbol: str, facts: list[str]) -> None:
+        known = set(self.facts(symbol))
+        new_facts: list[str] = []
+        for fact in facts:
+            if fact not in known:
+                known.add(fact)
+                new_facts.append(fact)
         self._conn.executemany(
-            "INSERT INTO facts (symbol, fact) VALUES (?, ?)", [(symbol, fact) for fact in facts]
+            "INSERT INTO facts (symbol, fact) VALUES (?, ?)",
+            [(symbol, fact) for fact in new_facts],
         )
         self._conn.commit()

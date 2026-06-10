@@ -2,9 +2,10 @@
 
 ``dispatch_one`` is the M2 single-worker call. ``fan_out`` runs the chosen worker set
 concurrently with ``asyncio.gather`` over A2A (P9 -- NOT LangGraph ``Send``, which cannot
-cross the process boundary). Each worker gets its own timeout (A3): a slow or unreachable
-worker becomes a ``DimensionGap`` instead of blocking the gather or raising. The
-orchestrator receives only the ``WorkerArtifact`` -- never the worker's internal context.
+cross the process boundary). Each worker runs under a single per-worker wall-clock deadline
+(A3) enforced by ``asyncio.wait_for``: a slow or unreachable worker becomes a ``DimensionGap``
+instead of blocking the gather or raising. The orchestrator receives only the
+``WorkerArtifact`` -- never the worker's internal context.
 """
 
 import asyncio
@@ -48,8 +49,11 @@ async def _dispatch_or_gap(
     episodic_seed: dict[str, str] | None,
 ) -> WorkerArtifact | DimensionGap:
     try:
-        return await dispatch_one(worker_url, symbol, run_id, timeout_s, episodic_seed)
-    except httpx.TimeoutException:  # exceeded WORKER_TIMEOUT_S (A3)
+        return await asyncio.wait_for(
+            dispatch_one(worker_url, symbol, run_id, timeout_s, episodic_seed),
+            timeout_s,
+        )
+    except (TimeoutError, httpx.TimeoutException):  # wall-clock (A3) or HTTP-op timeout -> gap
         return DimensionGap(dimension=dimension, reason="timeout")
     except Exception as exc:  # unreachable / transport / bad envelope -> a gap, never raise
         return DimensionGap(dimension=dimension, reason=f"unreachable: {type(exc).__name__}")

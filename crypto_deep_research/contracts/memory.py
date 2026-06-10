@@ -15,6 +15,8 @@ class RunRecord(BaseModel):
 
 
 class WorkingMemory(Protocol):
+    """구현은 checkpointer(``memory/working.py``)로 대체 — note/read는 미사용 (C2)."""
+
     def note(self, run_id: str, key: str, value: str) -> None: ...  # write: worker records notes
     def read(self, run_id: str) -> dict[str, str]: ...  # read: distill node
 

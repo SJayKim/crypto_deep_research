@@ -44,7 +44,7 @@
 | **O1** | spec 문구/메커니즘 | Low | `dispatch.py:1–8`·A3는 "per-worker 30s timeout via `asyncio.gather`"라 표현하나, 실제 타임아웃은 `httpx.AsyncClient(timeout=timeout_s)`(dispatch.py:33)의 connect/read/write/pool **개별** 타임아웃. `test_timeout`은 통과(느린 worker→TimeoutException→gap)하나, read 타임아웃 미만으로 바이트를 조금씩 흘리는 worker는 총 wall-clock을 초과할 수 있음 | 두 선택: (a) 의도가 "HTTP 타임아웃"이면 docstring을 정정("per-worker timeout via httpx client timeout"), (b) 진짜 단일 wall-clock 마감을 원하면 `dispatch_one`을 `asyncio.wait_for(..., timeout_s)`로 감싸기. **권장: (b)** — `asyncio.wait_for`로 worker당 단일 마감 보장 + `test_timeout` 재확인 |
 
 ## 수정 Todolist
-- [ ] **O2-a**: `plan_dimensions` 매칭을 부분문자열 → 명시 토큰 매칭으로 교체(예: fact를 `dim:onchain` 형태 태그로 저장하거나, fact 토큰 집합과 dimension 정확 비교) → verify: `test_planner_longterm_read` 통과 + "fact가 다른 dimension 단어를 우연히 포함해도 오선택 안 함" 신규 단정 추가
-- [ ] **O2-c**: `SqliteLongTermMemory.add_facts` 또는 호출부에 dedup/상한 → verify: 동일 fact 반복 run 후 facts 무한 증가 안 함을 검증하는 테스트
-- [ ] **O1**: `dispatch_one` 호출을 `asyncio.wait_for(timeout_s)`로 감싸 worker당 단일 wall-clock 마감 보장, docstring을 실제 메커니즘과 일치시킴 → verify: `test_timeout` 통과 유지(필요 시 trickle-byte 케이스 추가)
+- [x] **O2-a**: `plan_dimensions` 매칭을 부분문자열 → 명시 토큰 매칭으로 교체(예: fact를 `dim:onchain` 형태 태그로 저장하거나, fact 토큰 집합과 dimension 정확 비교) → verify: `test_planner_longterm_read` 통과 + "fact가 다른 dimension 단어를 우연히 포함해도 오선택 안 함" 신규 단정 추가
+- [x] **O2-c**: `SqliteLongTermMemory.add_facts` 또는 호출부에 dedup/상한 → verify: 동일 fact 반복 run 후 facts 무한 증가 안 함을 검증하는 테스트
+- [x] **O1**: `dispatch_one` 호출을 `asyncio.wait_for(timeout_s)`로 감싸 worker당 단일 wall-clock 마감 보장, docstring을 실제 메커니즘과 일치시킴 → verify: `test_timeout` 통과 유지(필요 시 trickle-byte 케이스 추가)
 - [ ] **C1 연계**: `synthesize.py:43` evidence concat에 `[:N]` 방어 슬라이스 도입 여부 결정(증거 폭주 방지) → verify: 도입 시 `test_partial`/`test_zero_artifact` 통과 유지

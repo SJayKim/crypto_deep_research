@@ -26,3 +26,9 @@ def test_watchlisted_symbol_plans_full_set(longterm: Callable[..., LongTermMemor
 def test_fact_adds_only_the_named_dimension(longterm: Callable[..., LongTermMemory]) -> None:
     memory = longterm(facts={"BTC": ["onchain: large exchange outflow observed"]})
     assert plan_dimensions("BTC", _REGISTRY, memory) == ["market", "onchain"]
+
+
+def test_incidental_substring_does_not_select(longterm: Callable[..., LongTermMemory]) -> None:
+    # "sentimental" contains "sentiment" as a substring; exact-token match must NOT promote it.
+    memory = longterm(facts={"BTC": ["sentimental retail buyers stepped back"]})
+    assert plan_dimensions("BTC", _REGISTRY, memory) == ["market"]

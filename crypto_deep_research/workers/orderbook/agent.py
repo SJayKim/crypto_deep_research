@@ -7,6 +7,7 @@ shared ``workers/base`` harness (C6).
 """
 
 import asyncio
+from typing import Any
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
@@ -28,7 +29,16 @@ def _fetch(mcp_url: str, symbol: str) -> Orderbook:
     return asyncio.run(_fetch_orderbook(mcp_url, symbol))
 
 
-def _work(symbol: str, ob: Orderbook) -> WorkerArtifact:
+def _work(
+    symbol: str, ob: Orderbook, episodic_seed: dict[str, str] | None = None
+) -> WorkerArtifact:  # deterministic: prior-run seed is not used
+    if not ob.bids or not ob.asks:  # empty book -> no spread/mid/imbalance to compute (A3)
+        return WorkerArtifact(
+            dimension="orderbook",
+            status="failed",
+            headline=f"{symbol} orderbook empty",
+            key_points=["empty orderbook"],
+        )
     best_bid = max(level.price for level in ob.bids)
     best_ask = min(level.price for level in ob.asks)
     spread = best_ask - best_bid
@@ -54,5 +64,10 @@ def _work(symbol: str, ob: Orderbook) -> WorkerArtifact:
     )
 
 
-def analyze_orderbook(symbol: str, mcp_url: str) -> WorkerArtifact:
-    return run_worker("orderbook", _fetch, _work, symbol, mcp_url)
+def analyze_orderbook(
+    symbol: str,
+    mcp_url: str,
+    episodic_seed: dict[str, str] | None = None,
+    checkpointer: Any = None,
+) -> WorkerArtifact:
+    return run_worker("orderbook", _fetch, _work, symbol, mcp_url, checkpointer=checkpointer)

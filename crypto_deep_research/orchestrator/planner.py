@@ -8,6 +8,7 @@ symbol is on the long-term watchlist or a stored fact names it.
 """
 
 import asyncio
+import re
 
 import httpx
 
@@ -50,10 +51,10 @@ def plan_dimensions(
     if "market" in registry:
         chosen.add("market")
     watched = symbol in longterm.watchlist()
-    facts_text = " ".join(longterm.facts(symbol)).lower()
+    fact_tokens = set(re.findall(r"[a-z0-9]+", " ".join(longterm.facts(symbol)).lower()))
     for dimension in registry:
         if dimension == "market":
             continue
-        if watched or dimension in facts_text:
+        if watched or dimension in fact_tokens:
             chosen.add(dimension)
     return [d for d in _DIMENSIONS if d in chosen]

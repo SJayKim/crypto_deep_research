@@ -57,18 +57,31 @@ def llm_distill(dimension: Dimension, reason_prompt: str) -> WorkerArtifact:
     )
 
 
+def seed_context(episodic_seed: dict[str, str] | None) -> str:
+    """One-line prior-run note for LLM workers to reference (W1); '' when there is no prior run."""
+    if not episodic_seed:
+        return ""
+    prior_run = episodic_seed.get("prior_run_id", "")
+    prior_headline = episodic_seed.get("prior_headline", "")
+    return (
+        f" For continuity, the prior run ({prior_run}) concluded: {prior_headline}. "
+        "Note any change since then."
+    )
+
+
 class WorkerState(TypedDict, total=False):
     symbol: str
     mcp_url: str
     data: Any
     artifact: WorkerArtifact
     error: str
+    episodic_seed: dict[str, str] | None
 
 
 def build_worker_graph(
     dimension: Dimension,
     fetch: Callable[[str, str], Any],
-    work: Callable[[str, Any], WorkerArtifact],
+    work: Callable[[str, Any, dict[str, str] | None], WorkerArtifact],
     checkpointer: Any = None,
 ) -> Any:
     """``data`` calls ``fetch(mcp_url, symbol)`` (raises on MCP down); ``work`` distills it.
@@ -84,7 +97,7 @@ def build_worker_graph(
             return {"error": f"mcp fetch failed: {type(exc).__name__}"}
 
     def _work(state: WorkerState) -> dict[str, Any]:
-        return {"artifact": work(state["symbol"], state["data"])}
+        return {"artifact": work(state["symbol"], state["data"], state.get("episodic_seed"))}
 
     def _fail(state: WorkerState) -> dict[str, Any]:
         artifact = WorkerArtifact(
@@ -112,15 +125,17 @@ def build_worker_graph(
 def run_worker(
     dimension: Dimension,
     fetch: Callable[[str, str], Any],
-    work: Callable[[str, Any], WorkerArtifact],
+    work: Callable[[str, Any, dict[str, str] | None], WorkerArtifact],
     symbol: str,
     mcp_url: str,
     checkpointer: Any = None,
     run_id: str = "run",
+    episodic_seed: dict[str, str] | None = None,
 ) -> WorkerArtifact:
     graph = build_worker_graph(dimension, fetch, work, checkpointer)
     config = {"configurable": {"thread_id": run_id}} if checkpointer is not None else None
-    final = graph.invoke({"symbol": symbol, "mcp_url": mcp_url}, config=config)
+    initial = {"symbol": symbol, "mcp_url": mcp_url, "episodic_seed": episodic_seed}
+    final = graph.invoke(initial, config=config)
     return cast(WorkerArtifact, final["artifact"])
 
 
@@ -130,7 +145,9 @@ def _error(rpc_id: str, code: int, message: str) -> Response:
 
 
 def build_worker_app(
-    card: AgentCard, analyze: Callable[[str, str], WorkerArtifact], mcp_url: str
+    card: AgentCard,
+    analyze: Callable[[str, str, dict[str, str] | None], WorkerArtifact],
+    mcp_url: str,
 ) -> Starlette:
     """A2A JSON-RPC service for one worker: ``POST /`` runs ``analyze``, GET serves the card."""
 
@@ -147,7 +164,9 @@ def build_worker_app(
         except ValidationError as exc:
             rpc_id = str(raw.get("id", "")) if isinstance(raw, dict) else ""
             return _error(rpc_id, -32600, f"invalid request: {exc.error_count()} error(s)")
-        artifact = await asyncio.to_thread(analyze, rpc.params.symbol, mcp_url)
+        artifact = await asyncio.to_thread(
+            analyze, rpc.params.symbol, mcp_url, rpc.params.episodic_seed
+        )
         return JSONResponse(JsonRpcResponse(id=rpc.id, result=artifact).model_dump())
 
     return Starlette(

@@ -47,6 +47,6 @@
 | **WC3** | 보안(posture) | Low | A2A worker·MCP가 무인증으로 `0.0.0.0` 노출(serve_worker.py:35, compose `MCP_HOST`). compose 내부망/loopback 전제로는 의도된 설계이나, 네트워크 노출 시 누구나 `analyze` 호출 가능. epic "Auth ... out of scope" | 슬라이스 범위상 **수정 안 함**. 단 `docs/status/current_status.md`/본 문서에 "엔드포인트 무인증 — 신뢰 네트워크 전제, auth는 deferred"를 명문화해 운영 오해 방지. → verify: 기록 완료 |
 
 ## 수정 Todolist
-- [ ] **WC1**: `tests/test_wiring.py` 추가 — `load_wiring` 필수 env 누락→RuntimeError, 기본 timeout, `parse_symbol` 정상/ValueError → verify: 신규 테스트 통과(M0 AC#5 실검증)
+- [x] **WC1**: `tests/test_wiring.py` 추가 — `load_wiring` 필수 env 누락→RuntimeError, 기본 timeout, `parse_symbol` 정상/ValueError → verify: 신규 테스트 통과(M0 AC#5 실검증)
 - [ ] **WC2**: 코드 변경 없음. "BTC/ETH만 지원" 한계 기록(본 문서 + 02) → verify: 리뷰 합의
 - [ ] **WC3**: 코드 변경 없음. "엔드포인트 무인증(신뢰 네트워크 전제)" posture 명문화 → verify: 기록 완료

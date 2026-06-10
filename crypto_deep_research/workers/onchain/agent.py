@@ -7,6 +7,7 @@ down -> ``status="failed"`` (A3). Built on the shared ``workers/base`` harness (
 """
 
 import asyncio
+from typing import Any
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
@@ -28,7 +29,9 @@ def _fetch(mcp_url: str, symbol: str) -> OnchainMetrics:
     return asyncio.run(_fetch_onchain(mcp_url, symbol))
 
 
-def _work(symbol: str, m: OnchainMetrics) -> WorkerArtifact:
+def _work(
+    symbol: str, m: OnchainMetrics, episodic_seed: dict[str, str] | None = None
+) -> WorkerArtifact:  # deterministic: prior-run seed is not used
     flow = "outflow (accumulation)" if m.exchange_netflow < 0 else "inflow (distribution)"
     return WorkerArtifact(
         dimension="onchain",
@@ -47,5 +50,10 @@ def _work(symbol: str, m: OnchainMetrics) -> WorkerArtifact:
     )
 
 
-def analyze_onchain(symbol: str, mcp_url: str) -> WorkerArtifact:
-    return run_worker("onchain", _fetch, _work, symbol, mcp_url)
+def analyze_onchain(
+    symbol: str,
+    mcp_url: str,
+    episodic_seed: dict[str, str] | None = None,
+    checkpointer: Any = None,
+) -> WorkerArtifact:
+    return run_worker("onchain", _fetch, _work, symbol, mcp_url, checkpointer=checkpointer)

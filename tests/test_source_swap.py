@@ -62,7 +62,7 @@ def test_429_surfaces_as_dimension_gap() -> None:
     def fetch(mcp_url: str, symbol: str) -> Any:
         raise httpx.HTTPStatusError("rate limited", request=req, response=resp)
 
-    def work(symbol: str, data: Any) -> WorkerArtifact:
+    def work(symbol: str, data: Any, episodic_seed: dict[str, str] | None = None) -> WorkerArtifact:
         raise AssertionError("work must not run when fetch fails")
 
     final = build_worker_graph("market", fetch, work).invoke(

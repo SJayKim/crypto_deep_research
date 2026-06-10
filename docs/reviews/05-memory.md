@@ -46,7 +46,7 @@
 | **Mem4** | 견고성 | Low | episodic·longterm이 같은 파일에 별도 connection 2개, WAL 미설정 (episodic.py:18, longterm.py:14). 단일 orchestrator 프로세스라 현재 문제 없음 | 정보성. 동시성 확장 시 단일 connection 공유 또는 `PRAGMA journal_mode=WAL` 고려. **슬라이스 범위상 현행 유지** |
 
 ## 수정 Todolist
-- [ ] **O2(저장측)**: `SqliteLongTermMemory.add_facts`에 dedup(동일 (symbol,fact) 중복 방지) 또는 상한 → verify: 동일 run 반복 후 facts 행수 무한 증가 안 함을 검증하는 신규 테스트
+- [x] **O2(저장측)**: `SqliteLongTermMemory.add_facts`에 dedup(동일 (symbol,fact) 중복 방지) 또는 상한 → verify: 동일 run 반복 후 facts 행수 무한 증가 안 함을 검증하는 신규 테스트
 - [ ] **W2(검증측)**: 라이브 주입(04-workers) 후 `working-<dim>.db`가 실제 run에서 생성/기록됨을 `test_db_topology` 확장 또는 신규 테스트로 단정 → verify: 신규 단정 통과
 - [ ] **C2(명시)**: working.py 또는 contracts/memory.py에 "working layer = checkpointer(state-as-scratchpad), note/read protocol 미사용" 주석 → verify: mypy clean, 동작 무변경
 - [ ] **Mem4**: 코드 변경 없음(정보성 기록) → verify: 리뷰 합의

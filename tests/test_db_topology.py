@@ -11,11 +11,15 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from starlette.applications import Starlette
+
 from crypto_deep_research.contracts.artifact import Dimension, WorkerArtifact
 from crypto_deep_research.memory.episodic import SqliteEpisodicMemory
 from crypto_deep_research.memory.longterm import SqliteLongTermMemory
 from crypto_deep_research.memory.working import worker_checkpointer, working_db_path
+from crypto_deep_research.orchestrator.dispatch import dispatch_one
 from crypto_deep_research.workers.base import run_worker
+from crypto_deep_research.workers.orderbook.service import build_orderbook_app
 
 _DIMENSIONS: tuple[Dimension, ...] = ("market", "orderbook", "sentiment", "onchain")
 
@@ -24,8 +28,8 @@ def _fetch(mcp_url: str, symbol: str) -> dict[str, str]:
     return {"symbol": symbol}  # deterministic stub: no MCP
 
 
-def _work_for(dimension: Dimension) -> Callable[[str, Any], WorkerArtifact]:
-    def work(symbol: str, data: Any) -> WorkerArtifact:
+def _work_for(dimension: Dimension) -> Callable[[str, Any, dict[str, str] | None], WorkerArtifact]:
+    def work(symbol: str, data: Any, episodic_seed: dict[str, str] | None = None) -> WorkerArtifact:
         return WorkerArtifact(dimension=dimension, status="ok", headline="ok", key_points=["x"])
 
     return work
@@ -62,3 +66,18 @@ def test_db_topology_and_single_writer(tmp_path: Path) -> None:
     for path in worker_paths:
         assert Path(path).exists()
     assert Path(orch_db).read_bytes() == before
+
+
+def test_live_serving_path_writes_working_db(
+    serve: Callable[[Starlette], str], dead_mcp_url: str, tmp_path: Path
+) -> None:
+    # W2: the LIVE A2A serving path injects the worker's own checkpointer, so a real dispatch
+    # writes its working-<dim>.db (DESIGN premise 5: every layer has a real trigger). Dead MCP
+    # -> deterministic failed artifact, so no MCP/LLM is needed (T7b).
+    db_path = working_db_path(str(tmp_path), "orderbook")
+    with worker_checkpointer(db_path) as cp:
+        worker_url = serve(build_orderbook_app(dead_mcp_url, "http://stub", cp))
+        artifact = asyncio.run(dispatch_one(worker_url, "BTC", "run"))
+        assert artifact.dimension == "orderbook" and artifact.status == "failed"
+        assert Path(db_path).exists()
+        assert list(cp.list(None))  # the live run actually wrote checkpoints to the worker's DB

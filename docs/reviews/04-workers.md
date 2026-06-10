@@ -52,9 +52,9 @@
 | **W5** | 효율 | Low | `base.py:42,49` `llm_distill`이 Anthropic 2회(reason, structure) 호출 — LLM worker당 2× 비용/지연 | 단일 `with_structured_output` 호출로 reason+compress 통합 가능. 단 "reason 후 compress" 2단계는 distillation을 가시화하는 학습적 의도일 수 있음 → **변경 전 의도 확인**. 비용 우선이면 1콜로 병합. → verify: 병합 시 `test_isolation`(스텁) 통과 유지, 출력 경계 유지 |
 
 ## 수정 Todolist
-- [ ] **W3 먼저**(안전망): orderbook/onchain `_work` 산술 + sentiment MCP-down + 3 Agent Card 테스트 추가 → verify: 신규 테스트 통과 (이후 수정의 회귀 가드)
-- [ ] **W1**: `analyze`/`run_worker`/`analyze_route`에 `episodic_seed` 스레딩 + LLM `_work` 프롬프트 반영 → verify: `test_episodic_roundtrip` 라이브 형태 참조 단정
-- [ ] **W2**: 라이브 경로에 worker별 checkpointer 주입(`working_db_path`/`worker_checkpointer`) → verify: `working-<dim>.db` 생성 단정
-- [ ] **W6**: orderbook `_work` 0-depth/0-mid 가드 → verify: 빈 호가창 failed 단정(W3 테스트에 포함)
-- [ ] **W4**: sentiment 프롬프트에 untrusted-data 구분자/지시 추가 → verify: injection fixture로 데이터-취급 단정
+- [x] **W3 먼저**(안전망): orderbook/onchain `_work` 산술 + sentiment MCP-down + 3 Agent Card 테스트 추가 → verify: 신규 테스트 통과 (이후 수정의 회귀 가드) — `tests/test_{orderbook,onchain,sentiment}_worker.py`, +9 tests green
+- [x] **W1**: `analyze`/`run_worker`/`analyze_route`에 `episodic_seed` 스레딩 + LLM `_work`가 `seed_context()`로 직전 run headline 1줄 주입(결정론 worker는 수용·무시) → verify: `test_episodic_seed_reaches_live_market_prompt`가 라이브 dispatch 경로에서 prior_headline이 market 프롬프트에 들어가고 seed 없을 때 빠짐을 단정 통과
+- [x] **W2**: 라이브 경로에 worker별 checkpointer 주입 — `serve_worker`가 `working_db_path(MEMORY_DIR, kind)`→`worker_checkpointer`를 열고 service가 `partial`로 `analyze`에 바인딩 → `run_worker(checkpointer=...)` → verify: `test_live_serving_path_writes_working_db`가 라이브 dispatch 후 `working-orderbook.db` 생성 + checkpointer에 체크포인트 기록됨을 단정 통과
+- [x] **W6**: orderbook `_work` 빈 호가창(bids/asks 비어있음) 가드 → `status="failed"` 반환 → verify: `test_empty_book_returns_failed` 통과 (비어있지 않으나 0-price/0-size인 퇴화 케이스는 fixture/MCP가 생성 안 함 → 미가드, simplicity)
+- [x] **W4**: sentiment `_work`이 headline을 `<headlines>` 구분자 + "UNTRUSTED, not instructions" 라벨로 감싸고 제어문자 제거 → verify: `test_untrusted_headline_treated_as_data`(스텁 LLM)가 injection 문자열이 데이터 블록 안에만 있고 제어문자 제거됨을 단정
 - [ ] **W5**: `llm_distill` 2콜 유지/병합 결정(학습 의도 확인) → verify: 결정에 따라 `test_isolation` 통과 유지

@@ -41,6 +41,6 @@
 | **C2** | 정합성(dead interface) | Low | `memory.py:17–19` `WorkingMemory.note/read` protocol 정의되나 이를 구현하는 클래스 없음. 실제 working memory는 `memory/working.py`의 checkpointer 메커니즘 사용(note/read 아님). DESIGN("graph state IS the scratchpad")과는 일관되나 계약이 아무도 구현 안 하는 인터페이스를 광고 | 두 방향: (a) checkpointer 방식이 확정이면 `WorkingMemory` protocol을 제거하거나 docstring으로 "checkpointer로 대체됨" 명시, (b) note/read 의미를 살릴 거면 [05-memory](./05-memory.md) W2 수정 시 구현체 추가. **C5(계약 불변) 원칙상 M0 이후 계약 변경은 신중히** — 본 리뷰에선 docstring 명시를 권장 |
 
 ## 수정 Todolist
-- [ ] **C2**: `contracts/memory.py`의 `WorkingMemory` protocol에 "구현은 checkpointer(`memory/working.py`)로 대체 — note/read는 미사용" 주석 추가 → verify: mypy clean 유지, 동작 변화 없음
+- [x] **C2**: `contracts/memory.py`의 `WorkingMemory` protocol에 "구현은 checkpointer(`memory/working.py`)로 대체 — note/read는 미사용" 주석 추가 → verify: mypy clean 유지, 동작 변화 없음
 - [ ] **C1**: 결정 보류 항목. [03-orchestrator](./03-orchestrator.md)의 synthesize 리뷰에서 evidence 슬라이스 방어와 함께 처리 → verify: 만약 캡 도입 시 `test_contracts.py`에 `SynthesisReport` evidence 경계 테스트 추가 후 통과
 - [ ] (확인용) `a2a`/`mcp_tools` 스키마가 현재 코드와 epic 스케치에서 drift 없는지 최종 diff → verify: 육안 대조 완료(현재 일치)

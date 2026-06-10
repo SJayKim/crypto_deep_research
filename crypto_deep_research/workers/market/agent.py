@@ -7,13 +7,14 @@ the shared ``workers/base`` harness (C6).
 """
 
 import asyncio
+from typing import Any
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 from crypto_deep_research.contracts.artifact import WorkerArtifact
 from crypto_deep_research.contracts.mcp_tools import OHLCV
-from crypto_deep_research.workers.base import llm_distill, run_worker
+from crypto_deep_research.workers.base import llm_distill, run_worker, seed_context
 
 
 async def _fetch_ohlcv(mcp_url: str, symbol: str) -> OHLCV:
@@ -28,15 +29,29 @@ def _fetch(mcp_url: str, symbol: str) -> OHLCV:
     return asyncio.run(_fetch_ohlcv(mcp_url, symbol))
 
 
-def _work(symbol: str, ohlcv: OHLCV) -> WorkerArtifact:
+def _work(symbol: str, ohlcv: OHLCV, episodic_seed: dict[str, str] | None = None) -> WorkerArtifact:
     series = ", ".join(f"{b.ts}:{b.close}" for b in ohlcv.bars)
     prompt = (
         f"You are a crypto market analyst. Analyze {symbol} from these daily close prices "
         f"(unix_ts:close): {series}. Discuss trend, momentum, and notable levels. Be concise "
         "and specific with numbers."
+        f"{seed_context(episodic_seed)}"
     )
     return llm_distill("market", prompt)
 
 
-def analyze_market(symbol: str, mcp_url: str) -> WorkerArtifact:
-    return run_worker("market", _fetch, _work, symbol, mcp_url)
+def analyze_market(
+    symbol: str,
+    mcp_url: str,
+    episodic_seed: dict[str, str] | None = None,
+    checkpointer: Any = None,
+) -> WorkerArtifact:
+    return run_worker(
+        "market",
+        _fetch,
+        _work,
+        symbol,
+        mcp_url,
+        checkpointer=checkpointer,
+        episodic_seed=episodic_seed,
+    )
