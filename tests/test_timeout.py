@@ -1,4 +1,11 @@
-"""M3 AC#5 (A3): a worker exceeding the timeout becomes a gap; the gather still returns."""
+"""M3 AC#5 (A3): a worker exceeding the timeout becomes a gap; the gather still returns.
+
+[한글 설명] ARCHITECTURE-MAP §7의 "타임아웃"(A3 + TENSION-C)에 해당. 결정코드 A3: 워커마다
+30s 타임아웃(env 조정 가능)을 asyncio.gather로 건다. 핵심 보장: 느린 워커 하나가 전체 런을
+인질로 잡지 못한다 — 타임아웃을 넘긴 차원은 timeout gap이 되고, 나머지 워커 결과는 정상 수집된다.
+또 O1: 바이트를 찔끔찔끔 흘려 httpx의 read timeout은 피하는 악성 워커도 wall-clock 데드라인
+(asyncio.wait_for)으로 반드시 잘려야 한다는 미묘한 경계까지 검증한다.
+"""
 
 import asyncio
 from collections.abc import AsyncIterator, Callable
@@ -14,6 +21,8 @@ from crypto_deep_research.contracts.report import DimensionGap
 from crypto_deep_research.orchestrator.dispatch import fan_out
 
 
+# 한 워커는 2초 자고(0.3초 타임아웃 초과) 다른 워커는 즉시 응답. 느린 쪽은 timeout gap,
+# 빠른 쪽은 정상 ok로 같이 돌아오는지 = 느린 워커가 전체를 막지 않는다는 A3 핵심(AC#5).
 def test_slow_worker_times_out_while_others_return(
     serve: Callable[[Starlette], str],
     slow_app: Callable[[Dimension, float], Starlette],
@@ -34,6 +43,8 @@ def test_slow_worker_times_out_while_others_return(
     assert fast.status == "ok"
 
 
+# O1: 바이트를 0.1초 간격으로 찔끔 흘려 httpx read timeout은 안 걸리지만 전체는 데드라인을
+# 넘기는 워커. 이래도 timeout gap이 되는지 = 진짜 차단선은 wall-clock(asyncio.wait_for)이라는 검증.
 def test_trickle_byte_worker_hits_wall_clock_deadline(
     serve: Callable[[Starlette], str],
 ) -> None:

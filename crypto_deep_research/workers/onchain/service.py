@@ -1,4 +1,8 @@
-"""A2A service for the onchain worker: the shared harness + its Agent Card."""
+"""A2A service for the onchain worker: the shared harness + its Agent Card.
+
+[한글 설명] market의 service.py와 구조 100% 동일. 명함 문구만 다르다. 4개 service.py가 판박이라는
+사실 자체가 C6(공용 틀 추출)의 성과 지표다.
+"""
 
 from functools import partial
 from typing import Any

@@ -1,5 +1,13 @@
 """M3 AC#2 (flagship isolation, A2): a 1000-row OHLCV distills to a bounded artifact and
-the orchestrator state never holds a raw array (stub LLM, T7b)."""
+the orchestrator state never holds a raw array (stub LLM, T7b).
+
+[한글 설명] ★플래그십 테스트★ — ARCHITECTURE-MAP §7 "격리 플래그십"이자 DESIGN의 핵심 성공
+기준. 5대 개념 중 Context Isolation + Distillation을 한 번에 증명한다(premise 3: 둘은 함께 있지만
+별개 속성이다). 시나리오: 워커에 1000행짜리 거대한 OHLCV를 먹인다 → 워커는 자기 격리된
+컨텍스트에서 그걸 증류해 bounded artifact(key_points ≤ 5, A2)로 줄여서 반환 → 오케스트레이터
+상태(최종 리포트)에는 raw 배열("bars")이 단 한 개도 들어오지 않는다. 즉 오케스트레이터는 워커의
+raw 컨텍스트를 '문자 그대로 읽을 수 없다'는 토폴로지 불변식을 검증. 스텁 LLM(T7b)이라 결정적.
+"""
 
 import asyncio
 import json
@@ -25,6 +33,7 @@ from crypto_deep_research.orchestrator.dispatch import dispatch_one
 from crypto_deep_research.workers.market.service import build_market_app
 
 
+# [스텁] 1000행짜리 거대한 OHLCV를 내놓는 데이터 소스 — 격리 테스트의 핵심 입력(일부러 크게).
 class _BigOhlcvSource:
     """DataSource serving a 1000-bar OHLCV -- the flagship isolation input."""
 
@@ -72,6 +81,8 @@ class _FakeChat:
         return _FakeStructured()
 
 
+# 플래그십 단언: (1) 입력이 진짜 1000행이고, (2) 워커가 돌려준 artifact의 key_points ≤ 5(증류, A2),
+# (3) 최종 리포트 JSON 어디에도 "bars" 같은 raw 배열이 없고 큰 리스트도 없음(격리, A2).
 def test_thousand_row_ohlcv_distills_to_bounded_artifact(
     serve: Callable[[Starlette], str],
     longterm: Callable[..., LongTermMemory],

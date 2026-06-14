@@ -1,7 +1,14 @@
 """M1 market worker: real-Anthropic behavior (T7) + deterministic MCP-down (T7b).
 
 Also W1: the live A2A path (dispatch -> worker -> LLM) threads ``episodic_seed`` into the
-market reason prompt, so a second run visibly references the first (stub LLM, T7b)."""
+market reason prompt, so a second run visibly references the first (stub LLM, T7b).
+
+[한글 설명] ARCHITECTURE-MAP §7의 "워커 data→work→distill"에 해당(market 워커는 LLM 워커).
+검증 두 갈래: (1) T7 — 실제 Anthropic 키가 있을 때만 도는 진짜 행동 테스트(의미 있는 artifact 생성),
+(2) T7b — MCP가 죽으면 LLM을 부르기 전에 failed로 단락되는지(A3). 추가로 W1: 라이브 A2A
+경로에서 episodic_seed(지난 런 요약)가 실제로 LLM 프롬프트에 주입되어, 두 번째 런이 첫 런을
+참조하는지(Layered Memory의 episodic READ 트리거가 워커 추론까지 도달함)를 확인한다.
+"""
 
 import asyncio
 import os
@@ -29,6 +36,7 @@ from crypto_deep_research.workers.market.service import build_market_app
 _HAS_KEY = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
+# MCP 서버가 없을 때 LLM을 부르지 않고 곧장 failed artifact를 내는지. A3 단락 경로(데이터 없으면 추론 안 함).
 def test_mcp_down_returns_failed_artifact() -> None:  # T7b: deterministic, no LLM
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
@@ -39,6 +47,8 @@ def test_mcp_down_returns_failed_artifact() -> None:  # T7b: deterministic, no L
     assert artifact.dimension == "market"
 
 
+# [라이브 전용] 진짜 Anthropic으로 data→work→distill 전체를 돌려 비어있지 않은 artifact가
+# 나오는지. T7: 워커 행동(실제 추론·증류 품질)은 실제 LLM으로만 검증한다.
 @pytest.mark.skipif(not _HAS_KEY, reason="needs real ANTHROPIC_API_KEY (T7)")
 def test_market_worker_produces_nontrivial_artifact(mcp_url: str) -> None:  # T7: real Anthropic
     artifact = analyze_market("BTC", mcp_url)
@@ -92,6 +102,9 @@ class _CapturingChat:
         return _CapturingStructured()
 
 
+# W1 플래그십: 진짜 A2A 디스패치(dispatch→워커→LLM) 경로에서, 넘긴 episodic_seed의
+# 지난 런 headline/id가 실제 reason 프롬프트 안에 들어가는지. 시드 없으면 들어가지 않음도 확인.
+# = episodic 메모리 READ가 "장식"이 아니라 워커 추론을 실제로 바꾼다는 증거(premise 5).
 def test_episodic_seed_reaches_live_market_prompt(
     serve: Callable[[Starlette], str], monkeypatch: pytest.MonkeyPatch
 ) -> None:  # W1: the live A2A path threads episodic_seed into the worker's LLM prompt

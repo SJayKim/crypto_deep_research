@@ -3,6 +3,12 @@
 A stub market worker records the ``episodic_seed`` it receives. The first run stores its
 ``RunRecord``; the second run reads it at run start and passes a compact reference down to
 the worker -- the visible episodic round-trip (T7b: stub worker, no LLM).
+
+[한글 설명] ARCHITECTURE-MAP §7의 "두 번째 런이 첫 런 참조"에 해당. 5대 개념 중 Layered Memory의
+episodic 계층 — READ 트리거(런 시작 시 last_for(symbol))와 WRITE 트리거(런 끝 put)의 왕복을
+검증한다. 런1은 prior가 없어 seed=None이고 자기 RunRecord를 저장. 런2는 런1을 읽어 압축된
+참조(prior_run_id/prior_headline)를 워커에 내려보낸다. = episodic 메모리가 "장식"이 아니라 실제
+런 간 연속성을 만든다는 premise 5의 증거. 스텁 워커(T7b).
 """
 
 import asyncio
@@ -22,6 +28,8 @@ from crypto_deep_research.memory.episodic import SqliteEpisodicMemory
 from crypto_deep_research.orchestrator.app import run_orchestrator
 
 
+# [스텁] 자기가 받은 episodic_seed를 seen 리스트에 그대로 기록하는 가짜 market 워커.
+# 런마다 어떤 prior-run 참조가 내려왔는지 관찰하기 위함(T7b, LLM 없음).
 def _seed_recording_market(seen: list[dict[str, str] | None]) -> Starlette:
     card = AgentCard(
         name="market-worker",
@@ -50,6 +58,8 @@ def _seed_recording_market(seen: list[dict[str, str] | None]) -> Starlette:
     )
 
 
+# 런1: seed=None(첫 런) + RunRecord 저장 확인. 런2: 런1을 읽어 prior_run_id="r1",
+# prior_headline=런1 headline을 워커에 전달했는지 + 최신 기록이 r2로 갱신됐는지(READ↔WRITE 왕복, AC#1).
 def test_second_run_reads_and_references_first(
     serve: Callable[[Starlette], str],
     longterm: Callable[..., LongTermMemory],

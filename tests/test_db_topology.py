@@ -4,6 +4,12 @@ Each worker owns its own checkpointer DB file, distinct from the orchestrator's 
 long-term DB (AC#3). Workers running concurrently write only their own files; the
 orchestrator DB stays byte-for-byte untouched -- single-writer-per-file (AC#4). Deterministic
 stubs, no MCP or LLM (T7b).
+
+[한글 설명] ARCHITECTURE-MAP §7의 "A4 DB 단독 소유 토폴로지"에 해당. 결정코드 A4: 워커는 각자
+자기 checkpointer DB(working 메모리)를 소유하고, 오케스트레이터는 episodic+long-term DB를 단독
+소유한다(파일당 단일 작성자). 검증: (AC#3) 워커 DB 경로가 서로 다르고 오케스트레이터 DB와도
+다르다, (AC#4) 워커 4개를 동시에 돌려도 각자 자기 파일만 쓰고 오케스트레이터 DB는 바이트 단위로
+그대로다. 또 W2: 라이브 A2A 서빙 경로가 실제로 working DB에 체크포인트를 쓰는지(premise 5의 트리거).
 """
 
 import asyncio
@@ -41,6 +47,8 @@ def _run_one(dimension: Dimension, memory_dir: str) -> WorkerArtifact:
         return run_worker(dimension, _fetch, _work_for(dimension), "BTC", "unused", cp, "run")
 
 
+# 오케스트레이터 DB를 시드 후 바이트 스냅샷 → 워커 4개 동시 실행 → 각 워커는 자기 DB만 쓰고
+# 오케스트레이터 DB는 변경 0(byte-for-byte). 워커 DB 경로들이 서로/오케스트레이터와 모두 구분됨도 확인(A4).
 def test_db_topology_and_single_writer(tmp_path: Path) -> None:
     memory_dir = str(tmp_path)
     orch_db = str(tmp_path / "orchestrator.db")
@@ -68,6 +76,8 @@ def test_db_topology_and_single_writer(tmp_path: Path) -> None:
     assert Path(orch_db).read_bytes() == before
 
 
+# W2: 실제 A2A 디스패치 한 번이 워커 자신의 working-<dim>.db에 체크포인트를 실제로 남기는지.
+# MCP 죽음 → 결정적 failed(LLM 불필요)지만, 그래도 working 메모리 WRITE 트리거가 동작함을 증명(premise 5).
 def test_live_serving_path_writes_working_db(
     serve: Callable[[Starlette], str], dead_mcp_url: str, tmp_path: Path
 ) -> None:

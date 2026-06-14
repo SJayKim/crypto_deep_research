@@ -1,4 +1,8 @@
-"""A2A service for the sentiment worker: the shared harness + its Agent Card."""
+"""A2A service for the sentiment worker: the shared harness + its Agent Card.
+
+[한글 설명] market의 service.py와 구조 100% 동일. 명함의 name/description/skills 문구만 다르다.
+partial(..., checkpointer=...) 주입도 동일(W2/A4).
+"""
 
 from functools import partial
 from typing import Any
